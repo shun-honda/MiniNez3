@@ -6,8 +6,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "parser-context.h"
-
 struct Tree;
 struct TreeLog;
 struct MemoEntry;
