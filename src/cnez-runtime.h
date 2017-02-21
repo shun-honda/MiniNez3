@@ -267,7 +267,7 @@ void LINK(void *parent, size_t n, symbol_t label, void *child, void *thunk)
 #endif
 }
 
-void cnez_free(void *t)
+static void cnez_free(void *t)
 {
   GC(t, -1, NULL);
 }
@@ -550,7 +550,7 @@ void _log(ParserContext *c, int op, void *value, struct Tree *tree)
   c->unused_log++;
 }
 
-void cnez_dump(void *v, FILE *fp);
+static void cnez_dump(void *v, FILE *fp);
 
 static
 void DEBUG_dumplog(ParserContext *c)
@@ -1043,7 +1043,7 @@ static inline int ParserContext_bitis(ParserContext *c, int *bits, size_t n)
 // }
 
 
-void cnez_dump(void *v, FILE *fp)
+static void cnez_dump(void *v, FILE *fp)
 {
   size_t i;
   Tree *t = (Tree*)v;
