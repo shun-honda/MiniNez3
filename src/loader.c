@@ -163,9 +163,15 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst++;
         break;
       }
+      CASE_(Exit) {
+        fprintf(stderr, " %u", *inst);
+        inst++;
+        break;
+      }
       CASE_(Byte) {
         fprintf(stderr, " %c", *inst);
         inst++;
+        break;
       }
       default: break;
     }
@@ -191,7 +197,11 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst++;
       break;
     }
-    CASE_(Fail) break;
+    CASE_(Exit) {
+      *inst = Loader_Read8(loader);
+      inst++;
+      break;
+    }
     CASE_(Byte) {
       *inst = Loader_Read8(loader);
       inst++;
@@ -226,6 +236,7 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   C.set_size = read16(buf, &info);
   C.str_size = read16(buf, &info);
   C.tag_size = read16(buf, &info);
+  C.start_point = 2; // Default Start Point
   mininez_init_constant(&C);
   r->C = &C;
 
@@ -257,5 +268,5 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   mininez_dump_code(head, r);
 #endif
 
-  return inst;
+  return head;
 }

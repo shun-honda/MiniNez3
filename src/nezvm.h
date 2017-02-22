@@ -22,7 +22,8 @@ typedef struct mininez_constant_t {
   uint16_t tag_size;
   uint16_t table_size;
 
-  unsigned bytecode_length;
+  uint64_t bytecode_length;
+  uint64_t start_point;
 } mininez_constant_t;
 
 typedef struct mininez_runtime_t {
