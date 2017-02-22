@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "nezvm.h"
 #include "loader.h"
+#include "instruction.h"
 #include "bitset.h"
 #include "pstring.h"
 
@@ -25,64 +26,62 @@ char *load_file(const char *filename, size_t *length) {
   return source;
 }
 
-static char *peek(char* inputs, ByteCodeInfo *info)
+static char *peek(char* inputs, mininez_bytecode_info *info)
 {
     return inputs + info->pos;
 }
 
-static void skip(ByteCodeInfo *info, size_t shift)
+static void skip(mininez_bytecode_info *info, size_t shift)
 {
     info->pos += shift;
 }
 
-static inline uint8_t read8(char* inputs, ByteCodeInfo *info) {
+static inline uint8_t read8(char* inputs, mininez_bytecode_info *info) {
   return (uint8_t)inputs[info->pos++];
 }
 
-static uint16_t read16(char *inputs, ByteCodeInfo *info) {
+static uint16_t read16(char *inputs, mininez_bytecode_info *info) {
   uint16_t value = (uint8_t)inputs[info->pos++];
-  value = ((value) << 8) | ((uint8_t)inputs[info->pos++]);
+  value = (value) | ((uint8_t)inputs[info->pos++] << 8);
   return value;
 }
 
-static unsigned read24(char *inputs, ByteCodeInfo *info)
-{
-    unsigned d1 = read8(inputs, info);
-    unsigned d2 = read8(inputs, info);
-    unsigned d3 = read8(inputs, info);
-    return d1 << 16 | d2 << 8 | d3;
-}
-
-static uint32_t read32(char *inputs, ByteCodeInfo *info) {
+static uint32_t read32(char *inputs, mininez_bytecode_info *info) {
   uint32_t value = read16(inputs, info);
-  value = ((value) << 16) | read16(inputs, info);
+  value = (value) | (read16(inputs, info) << 16);
   return value;
 }
 
-static uint8_t Loader_Read8(ByteCodeLoader *loader) {
-  return read8(loader->input, loader->info);
+static uint64_t read64(char *inputs, mininez_bytecode_info *info) {
+  uint64_t value = read32(inputs, info);
+  value = (value) | (read32(inputs, info) << 32);
+  return value;
 }
 
-static uint16_t Loader_Read16(ByteCodeLoader *loader) {
-  return read16(loader->input, loader->info);
+static uint8_t Loader_Read8(mininez_bytecode_loader *loader) {
+  return read8(loader->buf, loader->info);
 }
 
-static unsigned Loader_Read24(ByteCodeLoader *loader) {
-  return read24(loader->input, loader->info);
+static uint16_t Loader_Read16(mininez_bytecode_loader *loader) {
+  return read16(loader->buf, loader->info);
 }
 
-static uint32_t Loader_Read32(ByteCodeLoader *loader) {
-  return read32(loader->input, loader->info);
+static unsigned Loader_Read24(mininez_bytecode_loader *loader) {
+  return read24(loader->buf, loader->info);
+}
+
+static uint32_t Loader_Read32(mininez_bytecode_loader *loader) {
+  return read32(loader->buf, loader->info);
 }
 
 #if MININEZ_DEBUG == 1
 
-static void dumpByteCodeInfo(ByteCodeInfo *info) {
-  fprintf(stderr, "FileType: %s\n", info->fileType);
-  fprintf(stderr, "Version: %c\n", info->version);
-  fprintf(stderr, "InstSize: %u\n", info->instSize);
+static void dump_bytecode_info(mininez_bytecode_info *info) {
+  fprintf(stderr, "Version: %u.%u\n", info->version0, info->version1);
+  fprintf(stderr, "Grammar Name: %s.nez\n", info->grammar_name);
+  fprintf(stderr, "Bytecode Length: %llu\n", info->bytecode_length);
+  fprintf(stderr, "Bytecode Size: %llu\n", info->bytecode_size);
 }
-
 
 static char *write_char(char *p, unsigned char ch)
 {
@@ -152,9 +151,111 @@ static void dump_set(bitset_t *set, char *buf)
     *buf++ = '\0';
 }
 
+void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
+  for (uint64_t i = 0; i < r->C->bytecode_length; i++) {
+    uint8_t opcode = *inst;
+    inst++;
+    fprintf(stderr, "%s", opcode_to_string(opcode));
+#define CASE_(OP) case OP:
+    switch (opcode) {
+      CASE_(Nop) {
+        fprintf(stderr, " %s", r->C->prod_names[*inst]);
+        inst++;
+        break;
+      }
+      CASE_(Byte) {
+        fprintf(stderr, " %c", *inst);
+        inst++;
+      }
+      default: break;
+    }
+#undef CASE_
+    fprintf(stderr, "\n");
+  }
+}
+
 #endif
+
+mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_loader* loader) {
+  uint8_t opcode = *inst;
+  inst++;
+#define CASE_(OP) case OP:
+  switch (opcode) {
+    CASE_(Nop) {
+      uint16_t len = Loader_Read16(loader);
+      char *str = peek(loader->buf, loader->info);
+      skip(loader->info, len);
+      loader->r->C->prod_names[loader->prod_count] = pstring_alloc(str, len);
+      *inst = loader->prod_count;
+      loader->prod_count++;
+      inst++;
+      break;
+    }
+    CASE_(Fail) break;
+    CASE_(Byte) {
+      *inst = Loader_Read8(loader);
+      inst++;
+      break;
+    }
+    default: break;
+  }
+#undef CASE_
+  return inst;
+}
 
 mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_name) {
   mininez_inst_t *inst = NULL;
+  mininez_inst_t *head = NULL;
+  mininez_constant_t C;
+  size_t len;
+  char* buf = load_file(code_file_name, &len);
+  mininez_bytecode_info info;
+  info.pos = 0;
+
+  /* load bytecode header */
+  info.version0 = read8(buf, &info);
+  info.version1 = read8(buf, &info);
+  info.grammar_name_length = read32(buf, &info);
+  info.grammar_name = (uint8_t *) VM_MALLOC(sizeof(uint8_t) * (info.grammar_name_length + 1));
+  for (uint32_t i = 0; i < info.grammar_name_length; i++) {
+    info.grammar_name[i] = read8(buf, &info);
+  }
+  info.grammar_name[info.grammar_name_length] = 0;
+
+  C.prod_size = read16(buf, &info);
+  C.set_size = read16(buf, &info);
+  C.str_size = read16(buf, &info);
+  C.tag_size = read16(buf, &info);
+  mininez_init_constant(&C);
+  r->C = &C;
+
+  info.bytecode_length = read64(buf, &info);
+  r->C->bytecode_length = info.bytecode_length;
+  info.bytecode_size = read64(buf, &info);
+  dump_bytecode_info(&info);
+
+  head = inst = VM_MALLOC(sizeof(*inst) * info.bytecode_size);
+  memset(inst, 0, sizeof(*inst) * info.bytecode_length);
+
+  mininez_bytecode_loader loader;
+  loader.buf = buf;
+  loader.info = &info;
+  loader.head = head;
+  loader.r = r;
+  loader.prod_count = 0;
+  loader.set_count = 0;
+  loader.str_count = 0;
+  loader.tag_count = 0;
+
+  /* load bytecode body */
+  for(uint64_t i = 0; i < info.bytecode_length; i++) {
+    *inst = Loader_Read8(&loader);
+    inst = mininez_load_instruction(inst, &loader);
+  }
+
+#if MININEZ_DEBUG == 1
+  mininez_dump_code(head, r);
+#endif
+
   return inst;
 }

@@ -1,5 +1,6 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
+#define MININEZ_DUMP_OPCODE
 
 enum mininez_opcode {
   Nop = 0,
