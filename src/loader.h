@@ -26,6 +26,9 @@ typedef struct mininez_bytecode_loader {
 } mininez_bytecode_loader;
 
 /* Loader Function */
+char *load_file(const char *filename, size_t *length);
 mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_name);
+
+void mininez_dispose_instructions(mininez_inst_t* inst);
 
 #endif

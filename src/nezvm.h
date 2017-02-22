@@ -26,6 +26,8 @@ typedef struct mininez_constant_t {
   uint64_t start_point;
 } mininez_constant_t;
 
+#define MININEZ_DEFAULT_STACK_SIZE (1024)
+
 typedef struct mininez_runtime_t {
   ParserContext *ctx;
   mininez_constant_t* C;
@@ -39,8 +41,10 @@ void nez_PrintErrorInfo(const char *errmsg);
 #define VM_FREE(N) free(N);
 
 /* Prepare Runtime */
-mininez_runtime_t *mininez_create_runtime();
-void *mininez_dispose_runtime(mininez_runtime_t *r);
-void *mininez_init_constant(mininez_constant_t *C);
+mininez_runtime_t *mininez_create_runtime(const unsigned char *text, size_t len);
+void mininez_dispose_runtime(mininez_runtime_t *r);
+mininez_constant_t* mininez_create_constant();
+void mininez_init_constant(mininez_constant_t *C);
+void mininez_dispose_constant(mininez_constant_t *C);
 
 #endif

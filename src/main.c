@@ -45,7 +45,11 @@ int main(int argc, char *const argv[]) {
   if (syntax_file == NULL) {
     nez_PrintErrorInfo("not input syntaxfile");
   }
-  r = mininez_create_runtime(input_file);
+  size_t len;
+  char* text = load_file(input_file, &len);
+  r = mininez_create_runtime(text, len);
   inst = mininez_load_code(r, syntax_file);
+  mininez_dispose_runtime(r);
+  mininez_dispose_instructions(inst);
   return 0;
 }

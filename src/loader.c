@@ -216,7 +216,7 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
 mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_name) {
   mininez_inst_t *inst = NULL;
   mininez_inst_t *head = NULL;
-  mininez_constant_t C;
+  mininez_constant_t* C = mininez_create_constant();
   size_t len;
   char* buf = load_file(code_file_name, &len);
   mininez_bytecode_info info;
@@ -232,13 +232,13 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   }
   info.grammar_name[info.grammar_name_length] = 0;
 
-  C.prod_size = read16(buf, &info);
-  C.set_size = read16(buf, &info);
-  C.str_size = read16(buf, &info);
-  C.tag_size = read16(buf, &info);
-  C.start_point = 2; // Default Start Point
-  mininez_init_constant(&C);
-  r->C = &C;
+  C->prod_size = read16(buf, &info);
+  C->set_size = read16(buf, &info);
+  C->str_size = read16(buf, &info);
+  C->tag_size = read16(buf, &info);
+  C->start_point = 2; // Default Start Point
+  mininez_init_constant(C);
+  r->C = C;
 
   info.bytecode_length = read64(buf, &info);
   r->C->bytecode_length = info.bytecode_length;
@@ -269,4 +269,8 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
 #endif
 
   return head;
+}
+
+void mininez_dispose_instructions(mininez_inst_t* inst) {
+  VM_FREE(inst);
 }
