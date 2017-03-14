@@ -80,6 +80,12 @@ static uint32_t Loader_Read32(mininez_bytecode_loader *loader) {
   return read32(loader->buf, loader->info);
 }
 
+static mininez_inst_t* Loader_Write16(mininez_inst_t* inst, uint16_t value) {
+  *(uint16_t *)inst = value;
+  inst += (sizeof(uint16_t)/sizeof(uint8_t));
+  return inst;
+}
+
 #if MININEZ_DEBUG == 1
 
 static void dump_bytecode_info(mininez_bytecode_info *info) {
@@ -165,8 +171,8 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
 #define CASE_(OP) case OP:
     switch (opcode) {
       CASE_(Nop) {
-        fprintf(stderr, " %s", r->C->prod_names[*inst]);
-        inst++;
+        fprintf(stderr, " %s", r->C->prod_names[*((uint16_t *)inst)]);
+        inst+=2;
         break;
       }
       CASE_(Exit) {
@@ -181,9 +187,9 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
       }
       CASE_(Set) {
         char buf[1024];
-        dump_set(&r->C->sets[*inst], buf);
-        fprintf(stderr, "%s\n", buf);
-        inst++;
+        dump_set(&r->C->sets[*((uint16_t *)inst)], buf);
+        fprintf(stderr, "%s", buf);
+        inst+=2;
         break;
       }
       default: break;
@@ -205,9 +211,7 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       char *str = peek(loader->buf, loader->info);
       skip(loader->info, len);
       loader->r->C->prod_names[loader->prod_count] = pstring_alloc(str, len);
-      *inst = loader->prod_count;
-      loader->prod_count++;
-      inst++;
+      inst = Loader_Write16(inst, loader->prod_count++);
       break;
     }
     CASE_(Exit) {
@@ -230,8 +234,7 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
           bitset_set(set, i);
         }
       }
-      *inst = loader->set_count++;
-      inst++;
+      inst = Loader_Write16(inst, loader->set_count++);
       break;
     }
     default: break;
