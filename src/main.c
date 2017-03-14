@@ -49,6 +49,7 @@ int main(int argc, char *const argv[]) {
   char* text = load_file(input_file, &len);
   r = mininez_create_runtime(text, len);
   inst = mininez_load_code(r, syntax_file);
+  mininez_parse(r, inst);
   mininez_dispose_runtime(r);
   mininez_dispose_instructions(inst);
   return 0;

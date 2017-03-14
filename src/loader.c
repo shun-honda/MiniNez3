@@ -236,7 +236,7 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   C->set_size = read16(buf, &info);
   C->str_size = read16(buf, &info);
   C->tag_size = read16(buf, &info);
-  C->start_point = 2; // Default Start Point
+  C->start_point = 4; // Default Start Point
   mininez_init_constant(C);
   r->C = C;
 

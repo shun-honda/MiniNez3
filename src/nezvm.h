@@ -2,6 +2,7 @@
 #define NEZVM_H
 
 #define MININEZ_DEBUG 1
+#define MININEZ_USE_SWITCH_CASE_DISPATCH
 
 #include <stdlib.h>
 #include "bitset.h"
@@ -31,7 +32,6 @@ typedef struct mininez_constant_t {
 typedef struct mininez_runtime_t {
   ParserContext *ctx;
   mininez_constant_t* C;
-  long* stack;
 } mininez_runtime_t;
 
 void nez_PrintErrorInfo(const char *errmsg);
@@ -46,5 +46,18 @@ void mininez_dispose_runtime(mininez_runtime_t *r);
 mininez_constant_t* mininez_create_constant();
 void mininez_init_constant(mininez_constant_t *C);
 void mininez_dispose_constant(mininez_constant_t *C);
+
+/* Parsing Function */
+int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst);
+
+static
+void pushWNum(ParserContext *c, size_t value, size_t num)
+{
+  Wstack *s = unusedStack(c);
+  s->value = value;
+  s->num = num;
+  GCDEC(c, s->tree);
+  s->tree  = NULL;
+}
 
 #endif
