@@ -57,24 +57,37 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   push(CTX, NEXT);\
 } while(0)
 
-#define POP_CALL(CTX, NEXT) do {\
-  NEXT = popW(CTX)->value;\
+#define POP_CALL(CTX, INST, NEXT) do {\
+  NEXT = INST + popW(CTX)->value;\
 } while(0)
 
 #define PUSH_FAIL(CTX, CUR, NEXT) do {\
+  push(CTX, CTX->fail_stack);\
   pushWNum(CTX, CUR, NEXT);\
+  pushWNum(CTX, ParserContext_saveLog(CTX), ParserContext_saveSymbolPoint(CTX));\
+  CTX->fail_stack = CTX->unused_stack - 2;\
 } while(0)
 
-#define POP_FAIL(CTX, CUR, NEXT, FAIL) do {\
-  FAIL = popW(CTX);\
+#define POP_FAIL(CTX, INST, CUR, NEXT, FAIL) do {\
+  FAIL = CTX->stacks + CTX->fail_stack;\
+  CTX->unused_stack = CTX->fail_stack - 1;\
+  CTX->fail_stack = FAIL->value;\
+  FAIL = FAIL + 1;\
   CUR = (const char*)FAIL->value;\
-  NEXT = FAIL->num;\
+  NEXT = INST + FAIL->num;\
+  FAIL = FAIL + 1;\
+  ParserContext_backLog(CTX, FAIL->value);\
+  ParserContext_backSymbolPoint(CTX, FAIL->num);\
 } while(0)
 
 #define read_uint8_t(PC) *(PC++);
 
-int mininez_init_vm(ParserContext* ctx) {
-
+void mininez_init_vm(ParserContext* ctx, mininez_inst_t* inst) {
+  push(ctx, 0);
+  pushWNum(ctx, ctx->inputs, 0);
+  pushWNum(ctx, ParserContext_saveLog(ctx), ParserContext_saveSymbolPoint(ctx));
+  push(ctx, 2);
+  ctx->fail_stack = 0;
 }
 
 int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
@@ -129,7 +142,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Call");
   }
   OP_CASE(Ret) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Ret");
+    POP_CALL(ctx, inst, pc);
+    DISPATCH_NEXT();
   }
   OP_CASE(Alt) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Alt");
@@ -152,7 +166,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
       cur++;
       DISPATCH_NEXT();
     }
-    POP_FAIL(ctx, cur, pc, fail);
+    POP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(Set) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Set");
