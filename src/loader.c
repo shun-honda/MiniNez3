@@ -5,6 +5,12 @@
 #include "bitset.h"
 #include "pstring.h"
 
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif
+
+#define INT_BIT (sizeof(int) * CHAR_BIT)
+
 char *load_file(const char *filename, size_t *length) {
   size_t len = 0;
   FILE *fp = fopen(filename, "rb");
@@ -173,6 +179,13 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst++;
         break;
       }
+      CASE_(Set) {
+        char buf[1024];
+        dump_set(&r->C->sets[*inst], buf);
+        fprintf(stderr, "%s\n", buf);
+        inst++;
+        break;
+      }
       default: break;
     }
 #undef CASE_
@@ -204,6 +217,20 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
     }
     CASE_(Byte) {
       *inst = Loader_Read8(loader);
+      inst++;
+      break;
+    }
+    CASE_(Set) {
+      bitset_t* set = &loader->r->C->sets[loader->set_count];
+      bitset_init(set);
+      size_t len = Loader_Read16(loader);
+      for (unsigned i = 0; i < len; i++) {
+        unsigned v = Loader_Read8(loader);
+        if (v) {
+          bitset_set(set, i);
+        }
+      }
+      *inst = loader->set_count++;
       inst++;
       break;
     }
