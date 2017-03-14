@@ -80,7 +80,8 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   ParserContext_backSymbolPoint(CTX, FAIL->num);\
 } while(0)
 
-#define read_uint8_t(PC) *(PC++);
+#define read_uint8_t(PC)   *(PC);              PC += sizeof(uint8_t)
+#define read_uint16_t(PC)  *((uint16_t *)PC);  PC += sizeof(uint16_t)
 
 void mininez_init_vm(ParserContext* ctx, mininez_inst_t* inst) {
   push(ctx, 0);
@@ -112,11 +113,12 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
 
   OP_CASE(Nop) {
 #if MININEZ_DEBUG == 1
-    pc++;
+    read_uint16_t(pc);
 #endif
     DISPATCH_NEXT();
   }
   OP_CASE(Exit) {
+    r->ctx->pos = cur;
     return (int8_t) *pc++;
     DISPATCH_NEXT();
   }
@@ -170,7 +172,15 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Set) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Set");
+    uint16_t id = read_uint16_t(pc);
+    fprintf(stderr, "%hu\n", id);
+    bitset_t* set = &(r->C->sets[id]);
+    if (bitset_get(set, *cur)) {
+      cur++;
+      DISPATCH_NEXT();
+    }
+    POP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(Str) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Str");
