@@ -165,7 +165,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   OP_CASE(Byte) {
     uint8_t ch = read_uint8_t(pc);
     if (*cur == ch) {
-      cur++;
+      CONSUME();
       DISPATCH_NEXT();
     }
     POP_FAIL(ctx, inst, cur, pc, fail);
@@ -173,17 +173,23 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   }
   OP_CASE(Set) {
     uint16_t id = read_uint16_t(pc);
-    fprintf(stderr, "%hu\n", id);
     bitset_t* set = &(r->C->sets[id]);
     if (bitset_get(set, *cur)) {
-      cur++;
+      CONSUME();
       DISPATCH_NEXT();
     }
     POP_FAIL(ctx, inst, cur, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Str) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Str");
+    uint16_t id = read_uint16_t(pc);
+    const char *str = &(r->C->strs[id]);
+    unsigned len = pstring_length(str);
+    if (pstring_starts_with(cur, str, len) == 0) {
+        POP_FAIL(ctx, inst, cur, pc, fail);
+    }
+    CONSUME_N(len);
+    DISPATCH_NEXT();
   }
   OP_CASE(Any) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Any");

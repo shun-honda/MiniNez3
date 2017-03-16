@@ -237,6 +237,14 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst = Loader_Write16(inst, loader->set_count++);
       break;
     }
+    CASE_(Str) {
+      uint16_t len = Loader_Read16(loader);
+      char *str = peek(loader->buf, loader->info);
+      skip(loader->info, len);
+      loader->r->C->strs[loader->str_count] = pstring_alloc(str, (unsigned)len);
+      inst = Loader_Write16(inst, loader->str_count++);
+      break;
+    }
     default: break;
   }
 #undef CASE_
