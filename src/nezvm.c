@@ -94,7 +94,8 @@ void mininez_init_vm(ParserContext* ctx, mininez_inst_t* inst) {
 int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   mininez_inst_t* pc = inst + r->C->start_point;
   ParserContext* ctx = r->ctx;
-  const char* cur = r->ctx->inputs;
+  const char* cur = ctx->inputs;
+  const char* tail = ctx->inputs + ctx->length;
   Wstack* fail = NULL;
 
 #define CONSUME() cur++;
@@ -183,46 +184,107 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   }
   OP_CASE(Str) {
     uint16_t id = read_uint16_t(pc);
-    const char *str = &(r->C->strs[id]);
+    const char *str = r->C->strs[id];
     unsigned len = pstring_length(str);
     if (pstring_starts_with(cur, str, len) == 0) {
         POP_FAIL(ctx, inst, cur, pc, fail);
+        DISPATCH_NEXT();
     }
     CONSUME_N(len);
     DISPATCH_NEXT();
   }
   OP_CASE(Any) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Any");
+    if (cur == tail) {
+      POP_FAIL(ctx, inst, cur, pc, fail);
+      DISPATCH_NEXT();
+    }
+    CONSUME();
+    DISPATCH_NEXT();
   }
   OP_CASE(NByte) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction NByte");
+    uint8_t ch = read_uint8_t(pc);
+    if (*cur == ch) {
+      POP_FAIL(ctx, inst, cur, pc, fail);
+      DISPATCH_NEXT();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(NSet) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction NSet");
+    uint16_t id = read_uint16_t(pc);
+    bitset_t* set = &(r->C->sets[id]);
+    if (bitset_get(set, *cur)) {
+      POP_FAIL(ctx, inst, cur, pc, fail);
+      DISPATCH_NEXT();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(NStr) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction NStr");
+    uint16_t id = read_uint16_t(pc);
+    const char *str = r->C->strs[id];
+    unsigned len = pstring_length(str);
+    if (pstring_starts_with(cur, str, len) == 0) {
+      DISPATCH_NEXT();
+    }
+    POP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(NAny) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction NAny");
+    if (cur == tail) {
+      DISPATCH_NEXT();
+    }
+    POP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(OByte) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction OByte");
+    uint8_t ch = read_uint8_t(pc);
+    if (*cur == ch) {
+      CONSUME();
+      DISPATCH_NEXT();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(OSet) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction OSet");
+    uint16_t id = read_uint16_t(pc);
+    bitset_t* set = &(r->C->sets[id]);
+    if (bitset_get(set, *cur)) {
+      CONSUME();
+      DISPATCH_NEXT();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(OStr) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction OStr");
+    uint16_t id = read_uint16_t(pc);
+    const char *str = r->C->strs[id];
+    unsigned len = pstring_length(str);
+    if (pstring_starts_with(cur, str, len) == 0) {
+        DISPATCH_NEXT();
+    }
+    CONSUME_N(len);
+    DISPATCH_NEXT();
   }
   OP_CASE(RByte) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction RByte");
+    uint8_t ch = read_uint8_t(pc);
+    while (*cur == ch) {
+      CONSUME();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(RSet) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction RSet");
+    uint16_t id = read_uint16_t(pc);
+    bitset_t* set = &(r->C->sets[id]);
+    while (bitset_get(set, *cur)) {
+      CONSUME();
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(RStr) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction RStr");
+    uint16_t id = read_uint16_t(pc);
+    const char *str = r->C->strs[id];
+    unsigned len = pstring_length(str);
+    while (pstring_starts_with(cur, str, len) == 1) {
+        CONSUME_N(len);
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(Dispatch) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Dispatch");

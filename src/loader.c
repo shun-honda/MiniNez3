@@ -180,15 +180,29 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst++;
         break;
       }
-      CASE_(Byte) {
+      CASE_(Byte);
+      CASE_(NByte);
+      CASE_(OByte);
+      CASE_(RByte) {
         fprintf(stderr, " %c", *inst);
         inst++;
         break;
       }
-      CASE_(Set) {
+      CASE_(Set);
+      CASE_(NSet);
+      CASE_(OSet);
+      CASE_(RSet) {
         char buf[1024];
         dump_set(&r->C->sets[*((uint16_t *)inst)], buf);
-        fprintf(stderr, "%s", buf);
+        fprintf(stderr, " %s", buf);
+        inst+=2;
+        break;
+      }
+      CASE_(Str);
+      CASE_(NStr);
+      CASE_(OStr);
+      CASE_(RStr) {
+        fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
         inst+=2;
         break;
       }
@@ -219,12 +233,18 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst++;
       break;
     }
-    CASE_(Byte) {
+    CASE_(Byte);
+    CASE_(NByte);
+    CASE_(OByte);
+    CASE_(RByte) {
       *inst = Loader_Read8(loader);
       inst++;
       break;
     }
-    CASE_(Set) {
+    CASE_(Set);
+    CASE_(NSet);
+    CASE_(OSet);
+    CASE_(RSet) {
       bitset_t* set = &loader->r->C->sets[loader->set_count];
       bitset_init(set);
       size_t len = Loader_Read16(loader);
@@ -237,7 +257,10 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst = Loader_Write16(inst, loader->set_count++);
       break;
     }
-    CASE_(Str) {
+    CASE_(Str);
+    CASE_(NStr);
+    CASE_(OStr);
+    CASE_(RStr) {
       uint16_t len = Loader_Read16(loader);
       char *str = peek(loader->buf, loader->info);
       skip(loader->info, len);
