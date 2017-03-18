@@ -153,10 +153,13 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Trap");
   }
   OP_CASE(Pos) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Pos");
+    push(ctx, cur);
+    DISPATCH_NEXT();
   }
   OP_CASE(Back) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Back");
+    Wstack* stack = popW(ctx);
+    cur = stack->value;
+    DISPATCH_NEXT();
   }
   OP_CASE(Move) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Move");
