@@ -35,6 +35,8 @@ void mininez_init_constant(mininez_constant_t *C) {
   C->sets = (bitset_t *) VM_MALLOC(sizeof(bitset_t) * C->set_size);
   C->strs = (const char**) VM_MALLOC(sizeof(const char*) * C->str_size);
   C->tags = (const char**) VM_MALLOC(sizeof(const char*) * C->tag_size);
+  C->jump_indexs = (int8_t**) VM_MALLOC(sizeof(int8_t*) * C->table_size);
+  C->jump_tables = (int16_t**) VM_MALLOC(sizeof(int16_t*) * C->table_size);
 }
 
 void mininez_dispose_constant(mininez_constant_t *C) {
@@ -46,10 +48,24 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   C->prod_names = NULL;
   VM_FREE(C->sets);
   C->sets = NULL;
+  for (uint16_t i = 0; i < C->str_size; i++) {
+    pstring_delete(C->strs[i]);
+    C->strs[i] = NULL;
+  }
   VM_FREE(C->strs);
   C->strs = NULL;
   VM_FREE(C->tags);
   C->tags = NULL;
+  for (uint16_t i = 0; i < C->table_size; i++) {
+    VM_FREE(C->jump_indexs[i]);
+    C->jump_indexs[i] = NULL;
+    VM_FREE(C->jump_tables[i]);
+    C->jump_tables[i] = NULL;
+  }
+  VM_FREE(C->jump_indexs);
+  C->jump_indexs = NULL;
+  VM_FREE(C->jump_tables);
+  C->jump_tables = NULL;
   VM_FREE(C);
 }
 
@@ -324,7 +340,12 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Dispatch) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Dispatch");
+    uint16_t id = read_uint16_t(pc);
+    uint8_t* index = r->C->jump_indexs[id];
+    uint16_t* table = r->C->jump_tables[id];
+    uint8_t ch = (uint8_t)*cur;
+    pc = pc + table[index[ch]];
+    DISPATCH_NEXT();
   }
   OP_CASE(DDispatch) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction DDispatch");

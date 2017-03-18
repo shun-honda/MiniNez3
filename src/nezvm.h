@@ -15,7 +15,8 @@ typedef struct mininez_constant_t {
   bitset_t *sets;
   const char **tags;
   const char **strs;
-  const char **tables;
+  uint8_t** jump_indexs;
+  uint16_t** jump_tables;
 
   uint16_t prod_size;
   uint16_t set_size;

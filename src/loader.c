@@ -252,6 +252,11 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst+=2;
         break;
       }
+      CASE_(Dispatch) {
+        fprintf(stderr, " %u", *((uint16_t *)inst));
+        inst+=2;
+        break;
+      }
       default: break;
     }
 #undef CASE_
@@ -331,6 +336,20 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst = Loader_Write16(inst, loader->str_count++);
       break;
     }
+    CASE_(Dispatch) {
+      uint16_t len = Loader_Read16(loader);
+      loader->r->C->jump_indexs[loader->table_count] = (uint8_t *)VM_MALLOC(sizeof(uint8_t) * len);
+      for (size_t i = 0; i < len; i++) {
+        loader->r->C->jump_indexs[loader->table_count][i] = Loader_Read8(loader);
+      }
+      len = Loader_Read16(loader);
+      loader->r->C->jump_tables[loader->table_count] = (uint8_t *)VM_MALLOC(sizeof(uint8_t) * len);
+      for (size_t i = 0; i < len; i++) {
+        loader->r->C->jump_tables[loader->table_count][i] = Loader_Read16(loader);
+      }
+      inst = Loader_Write16(inst, loader->table_count++);
+      break;
+    }
     default: break;
   }
 #undef CASE_
@@ -360,6 +379,7 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   C->set_size = read16(buf, &info);
   C->str_size = read16(buf, &info);
   C->tag_size = read16(buf, &info);
+  C->table_size = read16(buf, &info);
   C->start_point = 4; // Default Start Point
   mininez_init_constant(C);
   r->C = C;
@@ -381,6 +401,7 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   loader.set_count = 0;
   loader.str_count = 0;
   loader.tag_count = 0;
+  loader.table_count = 0;
 
   /* load bytecode body */
   for(uint64_t i = 0; i < info.bytecode_length; i++) {

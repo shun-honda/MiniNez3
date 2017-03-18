@@ -19,10 +19,11 @@ typedef struct mininez_bytecode_loader {
   mininez_bytecode_info *info;
   mininez_runtime_t *r;
   mininez_inst_t *head;
-  u_int16_t prod_count;
-  u_int16_t set_count;
-  u_int16_t str_count;
-  u_int16_t tag_count;
+  uint16_t prod_count;
+  uint16_t set_count;
+  uint16_t str_count;
+  uint16_t tag_count;
+  uint16_t table_count;
 } mininez_bytecode_loader;
 
 /* Loader Function */
