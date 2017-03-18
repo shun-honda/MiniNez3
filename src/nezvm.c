@@ -190,7 +190,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Fail) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Fail");
+    POP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(Guard) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Guard");
