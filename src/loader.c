@@ -214,6 +214,13 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst+=2;
         break;
       }
+      CASE_(Call) {
+        fprintf(stderr, " %d", *((int16_t *)inst));
+        inst+=2;
+        fprintf(stderr, " %u", *((uint16_t *)inst));
+        inst+=2;
+        break;
+      }
       CASE_(Alt) {
         fprintf(stderr, " %u", *((uint16_t *)inst));
         inst+=2;
@@ -275,6 +282,13 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
     CASE_(Jump) {
       int16_t jump = Loader_ReadS16(loader);
       inst = Loader_WriteS16(inst, jump);
+      break;
+    }
+    CASE_(Call) {
+      int16_t next = Loader_ReadS16(loader);
+      inst = Loader_WriteS16(inst, next);
+      uint16_t jump = Loader_Read16(loader);
+      inst = Loader_Write16(inst, jump);
       break;
     }
     CASE_(Alt) {

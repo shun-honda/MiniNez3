@@ -167,7 +167,11 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Call) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Call");
+    int16_t next = read_int16_t(pc);
+    uint16_t jump = read_uint16_t(pc);
+    pc = pc + next;
+    PUSH_CALL(ctx, jump);
+    DISPATCH_NEXT();
   }
   OP_CASE(Ret) {
     POP_CALL(ctx, inst, pc);
