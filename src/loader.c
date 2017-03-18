@@ -52,6 +52,19 @@ static uint16_t read16(char *inputs, mininez_bytecode_info *info) {
   return value;
 }
 
+static int16_t readS16(char *inputs, mininez_bytecode_info *info) {
+  int16_t value = (int8_t)inputs[info->pos++];
+  value = (value) | ((int8_t)inputs[info->pos++] << 8);
+  return value;
+}
+
+static uint16_t read24(char *inputs, mininez_bytecode_info *info) {
+  uint16_t value = (uint8_t)inputs[info->pos++];
+  value = (value) | ((uint8_t)inputs[info->pos++] << 8);
+  value = (value) | ((uint8_t)inputs[info->pos++] << 16);
+  return value;
+}
+
 static uint32_t read32(char *inputs, mininez_bytecode_info *info) {
   uint32_t value = read16(inputs, info);
   value = (value) | (read16(inputs, info) << 16);
@@ -72,6 +85,10 @@ static uint16_t Loader_Read16(mininez_bytecode_loader *loader) {
   return read16(loader->buf, loader->info);
 }
 
+static int16_t Loader_ReadS16(mininez_bytecode_loader *loader) {
+  return readS16(loader->buf, loader->info);
+}
+
 static unsigned Loader_Read24(mininez_bytecode_loader *loader) {
   return read24(loader->buf, loader->info);
 }
@@ -83,6 +100,18 @@ static uint32_t Loader_Read32(mininez_bytecode_loader *loader) {
 static mininez_inst_t* Loader_Write16(mininez_inst_t* inst, uint16_t value) {
   *(uint16_t *)inst = value;
   inst += (sizeof(uint16_t)/sizeof(uint8_t));
+  return inst;
+}
+
+static mininez_inst_t* Loader_WriteS16(mininez_inst_t* inst, uint16_t value) {
+  *(int16_t *)inst = value;
+  inst += (sizeof(int16_t)/sizeof(uint8_t));
+  return inst;
+}
+
+static mininez_inst_t* Loader_Write32(mininez_inst_t* inst, uint16_t value) {
+  *(uint32_t *)inst = value;
+  inst += (sizeof(uint32_t)/sizeof(uint8_t));
   return inst;
 }
 
@@ -180,6 +209,16 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst++;
         break;
       }
+      CASE_(Jump) {
+        fprintf(stderr, " %d", *((int16_t *)inst));
+        inst+=2;
+        break;
+      }
+      CASE_(Alt) {
+        fprintf(stderr, " %u", *((uint16_t *)inst));
+        inst+=2;
+        break;
+      }
       CASE_(Byte);
       CASE_(NByte);
       CASE_(OByte);
@@ -231,6 +270,16 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
     CASE_(Exit) {
       *inst = Loader_Read8(loader);
       inst++;
+      break;
+    }
+    CASE_(Jump) {
+      int16_t jump = Loader_ReadS16(loader);
+      inst = Loader_WriteS16(inst, jump);
+      break;
+    }
+    CASE_(Alt) {
+      uint16_t jump = Loader_Read16(loader);
+      inst = Loader_Write16(inst, jump);
       break;
     }
     CASE_(Byte);

@@ -57,31 +57,53 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   push(CTX, NEXT);\
 } while(0)
 
-#define POP_CALL(CTX, INST, NEXT) do {\
-  NEXT = INST + popW(CTX)->value;\
+#define POP_CALL(CTX, INST, PC) do {\
+  PC = INST + popW(CTX)->value;\
 } while(0)
 
 #define PUSH_FAIL(CTX, CUR, NEXT) do {\
-  push(CTX, CTX->fail_stack);\
+  pushW(CTX, CTX->fail_stack, CTX->left);\
   pushWNum(CTX, CUR, NEXT);\
   pushWNum(CTX, ParserContext_saveLog(CTX), ParserContext_saveSymbolPoint(CTX));\
   CTX->fail_stack = CTX->unused_stack - 2;\
 } while(0)
 
-#define POP_FAIL(CTX, INST, CUR, NEXT, FAIL) do {\
+#define POP_FAIL(CTX, INST, CUR, PC, FAIL) do {\
   FAIL = CTX->stacks + CTX->fail_stack;\
   CTX->unused_stack = CTX->fail_stack - 1;\
+  CTX->left = FAIL->tree;\
   CTX->fail_stack = FAIL->value;\
   FAIL = FAIL + 1;\
   CUR = (const char*)FAIL->value;\
-  NEXT = INST + FAIL->num;\
+  PC = INST + FAIL->num;\
   FAIL = FAIL + 1;\
   ParserContext_backLog(CTX, FAIL->value);\
   ParserContext_backSymbolPoint(CTX, FAIL->num);\
 } while(0)
 
+#define STEP_FAIL(CTX, INST, CUR, PC, FAIL) do {\
+  FAIL = CTX->stacks + CTX->fail_stack;\
+  if (((const char*)(FAIL + 1)->value) == CUR) {\
+    POP_FAIL(CTX, INST, CUR, PC, FAIL);\
+  } else {\
+    FAIL->tree = CTX->left;\
+    FAIL++;\
+    FAIL->value = CUR;\
+    FAIL++;\
+    FAIL->value = ParserContext_saveLog(CTX);\
+    FAIL->num = ParserContext_saveSymbolPoint(CTX);\
+  }\
+} while(0)
+
+#define POP_SUCC(CTX, INST, CUR, PC, FAIL) do {\
+  FAIL = CTX->stacks + CTX->fail_stack;\
+  CTX->unused_stack = CTX->fail_stack - 1;\
+  CTX->fail_stack = FAIL->value;\
+} while(0)
+
 #define read_uint8_t(PC)   *(PC);              PC += sizeof(uint8_t)
 #define read_uint16_t(PC)  *((uint16_t *)PC);  PC += sizeof(uint16_t)
+#define read_int16_t(PC)   *((int16_t *)PC);   PC += sizeof(int16_t)
 
 void mininez_init_vm(ParserContext* ctx, mininez_inst_t* inst) {
   push(ctx, 0);
@@ -93,6 +115,7 @@ void mininez_init_vm(ParserContext* ctx, mininez_inst_t* inst) {
 
 int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   mininez_inst_t* pc = inst + r->C->start_point;
+  mininez_inst_t* jmp_head = inst + r->C->start_point;
   ParserContext* ctx = r->ctx;
   const char* cur = ctx->inputs;
   const char* tail = ctx->inputs + ctx->length;
@@ -139,7 +162,9 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Move");
   }
   OP_CASE(Jump) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Jump");
+    int16_t jump = read_int16_t(pc);
+    pc = pc + jump;
+    DISPATCH_NEXT();
   }
   OP_CASE(Call) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Call");
@@ -149,10 +174,13 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Alt) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Alt");
+    uint16_t jump = read_uint16_t(pc);
+    PUSH_FAIL(ctx, cur, jump);
+    DISPATCH_NEXT();
   }
   OP_CASE(Succ) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Succ");
+    POP_SUCC(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(Fail) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Fail");
@@ -161,7 +189,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Guard");
   }
   OP_CASE(Step) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Step");
+    STEP_FAIL(ctx, inst, cur, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(Byte) {
     uint8_t ch = read_uint8_t(pc);
