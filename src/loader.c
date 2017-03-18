@@ -46,6 +46,10 @@ static inline uint8_t read8(char* inputs, mininez_bytecode_info *info) {
   return (uint8_t)inputs[info->pos++];
 }
 
+static inline int8_t readS8(char* inputs, mininez_bytecode_info *info) {
+  return (int8_t)inputs[info->pos++];
+}
+
 static uint16_t read16(char *inputs, mininez_bytecode_info *info) {
   uint16_t value = (uint8_t)inputs[info->pos++];
   value = (value) | ((uint8_t)inputs[info->pos++] << 8);
@@ -78,6 +82,10 @@ static uint64_t read64(char *inputs, mininez_bytecode_info *info) {
 }
 
 static uint8_t Loader_Read8(mininez_bytecode_loader *loader) {
+  return read8(loader->buf, loader->info);
+}
+
+static int8_t Loader_ReadS8(mininez_bytecode_loader *loader) {
   return read8(loader->buf, loader->info);
 }
 
@@ -258,6 +266,20 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst+=2;
         break;
       }
+      CASE_(TBegin) {
+        fprintf(stderr, " %d", *(int8_t*)inst);
+        inst++;
+        break;
+      }
+      CASE_(TEnd) {
+        fprintf(stderr, " %d", *(int8_t*)inst);
+        inst++;
+        fprintf(stderr, " #%s", r->C->tags[*((uint16_t *)inst)]);
+        inst+=2;
+        fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
+        inst+=2;
+        break;
+      }
       default: break;
     }
 #undef CASE_
@@ -350,6 +372,36 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
         loader->r->C->jump_tables[loader->table_count][i] = Loader_Read16(loader);
       }
       inst = Loader_Write16(inst, loader->table_count++);
+      break;
+    }
+    CASE_(TBegin) {
+      *(int8_t *)inst = Loader_ReadS8(loader);
+      inst++;
+      break;
+    }
+    CASE_(TEnd) {
+      *(int8_t *)inst = Loader_ReadS8(loader);
+      inst++;
+      uint16_t len = Loader_Read16(loader);
+      if (len == 0) {
+        loader->r->C->tags[loader->tag_count] = 0;
+        inst = Loader_Write16(inst, loader->tag_count++);
+      } else {
+        char *tag = peek(loader->buf, loader->info);
+        skip(loader->info, len);
+        loader->r->C->tags[loader->tag_count] = pstring_alloc(tag, (unsigned)len);
+        inst = Loader_Write16(inst, loader->tag_count++);
+      }
+      len = Loader_Read16(loader);
+      if (len == 0) {
+        loader->r->C->strs[loader->str_count] = NULL;
+        inst = Loader_Write16(inst, loader->str_count++);
+      } else {
+        char *str = peek(loader->buf, loader->info);
+        skip(loader->info, len);
+        loader->r->C->strs[loader->str_count] = pstring_alloc(str, (unsigned)len);
+        inst = Loader_Write16(inst, loader->str_count++);
+      }
       break;
     }
     default: break;

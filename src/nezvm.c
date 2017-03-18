@@ -49,11 +49,19 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   VM_FREE(C->sets);
   C->sets = NULL;
   for (uint16_t i = 0; i < C->str_size; i++) {
-    pstring_delete(C->strs[i]);
-    C->strs[i] = NULL;
+    if(C->strs[i] != NULL) {
+      pstring_delete(C->strs[i]);
+      C->strs[i] = NULL;
+    }
   }
   VM_FREE(C->strs);
   C->strs = NULL;
+  for (uint16_t i = 0; i < C->tag_size; i++) {
+    if(C->tags[i] != NULL) {
+      pstring_delete(C->tags[i]);
+      C->strs[i] = NULL;
+    }
+  }
   VM_FREE(C->tags);
   C->tags = NULL;
   for (uint16_t i = 0; i < C->table_size; i++) {
@@ -118,6 +126,7 @@ void mininez_dispose_constant(mininez_constant_t *C) {
 } while(0)
 
 #define read_uint8_t(PC)   *(PC);              PC += sizeof(uint8_t)
+#define read_int8_t(PC)    *((int8_t *)PC);    PC += sizeof(int8_t)
 #define read_uint16_t(PC)  *((uint16_t *)PC);  PC += sizeof(uint16_t)
 #define read_int16_t(PC)   *((int16_t *)PC);   PC += sizeof(int16_t)
 
@@ -137,8 +146,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   const char* tail = ctx->inputs + ctx->length;
   Wstack* fail = NULL;
 
-#define CONSUME() cur++;
-#define CONSUME_N(N) cur+=N;
+#define CONSUME() ctx->pos++;
+#define CONSUME_N(N) ctx->pos+=N;
 
 #ifdef MININEZ_USE_SWITCH_CASE_DISPATCH
 #define DISPATCH_NEXT()         goto L_vm_head
@@ -158,7 +167,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(Exit) {
-    r->ctx->pos = cur;
+    // r->ctx->pos = cur;
     return (int8_t) *pc++;
     DISPATCH_NEXT();
   }
@@ -169,12 +178,12 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Trap");
   }
   OP_CASE(Pos) {
-    push(ctx, cur);
+    push(ctx, ctx->pos);
     DISPATCH_NEXT();
   }
   OP_CASE(Back) {
     Wstack* stack = popW(ctx);
-    cur = stack->value;
+    ctx->pos = stack->value;
     DISPATCH_NEXT();
   }
   OP_CASE(Move) {
@@ -198,57 +207,57 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   }
   OP_CASE(Alt) {
     uint16_t jump = read_uint16_t(pc);
-    PUSH_FAIL(ctx, cur, jump);
+    PUSH_FAIL(ctx, ctx->pos, jump);
     DISPATCH_NEXT();
   }
   OP_CASE(Succ) {
-    POP_SUCC(ctx, inst, cur, pc, fail);
+    POP_SUCC(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Fail) {
-    POP_FAIL(ctx, inst, cur, pc, fail);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Guard) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction Guard");
   }
   OP_CASE(Step) {
-    STEP_FAIL(ctx, inst, cur, pc, fail);
+    STEP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Byte) {
     uint8_t ch = read_uint8_t(pc);
-    if (*cur == ch) {
+    if (*ctx->pos == ch) {
       CONSUME();
       DISPATCH_NEXT();
     }
-    POP_FAIL(ctx, inst, cur, pc, fail);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Set) {
     uint16_t id = read_uint16_t(pc);
     bitset_t* set = &(r->C->sets[id]);
-    if (bitset_get(set, *cur)) {
+    if (bitset_get(set, *ctx->pos)) {
       CONSUME();
       DISPATCH_NEXT();
     }
-    POP_FAIL(ctx, inst, cur, pc, fail);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(Str) {
     uint16_t id = read_uint16_t(pc);
     const char *str = r->C->strs[id];
     unsigned len = pstring_length(str);
-    if (pstring_starts_with(cur, str, len) == 0) {
-        POP_FAIL(ctx, inst, cur, pc, fail);
+    if (pstring_starts_with(ctx->pos, str, len) == 0) {
+        POP_FAIL(ctx, inst, ctx->pos, pc, fail);
         DISPATCH_NEXT();
     }
     CONSUME_N(len);
     DISPATCH_NEXT();
   }
   OP_CASE(Any) {
-    if (cur == tail) {
-      POP_FAIL(ctx, inst, cur, pc, fail);
+    if (ctx->pos == tail) {
+      POP_FAIL(ctx, inst, ctx->pos, pc, fail);
       DISPATCH_NEXT();
     }
     CONSUME();
@@ -256,8 +265,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   }
   OP_CASE(NByte) {
     uint8_t ch = read_uint8_t(pc);
-    if (*cur == ch) {
-      POP_FAIL(ctx, inst, cur, pc, fail);
+    if (*ctx->pos == ch) {
+      POP_FAIL(ctx, inst, ctx->pos, pc, fail);
       DISPATCH_NEXT();
     }
     DISPATCH_NEXT();
@@ -265,8 +274,8 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   OP_CASE(NSet) {
     uint16_t id = read_uint16_t(pc);
     bitset_t* set = &(r->C->sets[id]);
-    if (bitset_get(set, *cur)) {
-      POP_FAIL(ctx, inst, cur, pc, fail);
+    if (bitset_get(set, *ctx->pos)) {
+      POP_FAIL(ctx, inst, ctx->pos, pc, fail);
       DISPATCH_NEXT();
     }
     DISPATCH_NEXT();
@@ -275,22 +284,22 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     uint16_t id = read_uint16_t(pc);
     const char *str = r->C->strs[id];
     unsigned len = pstring_length(str);
-    if (pstring_starts_with(cur, str, len) == 0) {
+    if (pstring_starts_with(ctx->pos, str, len) == 0) {
       DISPATCH_NEXT();
     }
-    POP_FAIL(ctx, inst, cur, pc, fail);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(NAny) {
-    if (cur == tail) {
+    if (ctx->pos == tail) {
       DISPATCH_NEXT();
     }
-    POP_FAIL(ctx, inst, cur, pc, fail);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
     DISPATCH_NEXT();
   }
   OP_CASE(OByte) {
     uint8_t ch = read_uint8_t(pc);
-    if (*cur == ch) {
+    if (*ctx->pos == ch) {
       CONSUME();
       DISPATCH_NEXT();
     }
@@ -299,7 +308,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   OP_CASE(OSet) {
     uint16_t id = read_uint16_t(pc);
     bitset_t* set = &(r->C->sets[id]);
-    if (bitset_get(set, *cur)) {
+    if (bitset_get(set, *ctx->pos)) {
       CONSUME();
       DISPATCH_NEXT();
     }
@@ -309,7 +318,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     uint16_t id = read_uint16_t(pc);
     const char *str = r->C->strs[id];
     unsigned len = pstring_length(str);
-    if (pstring_starts_with(cur, str, len) == 0) {
+    if (pstring_starts_with(ctx->pos, str, len) == 0) {
         DISPATCH_NEXT();
     }
     CONSUME_N(len);
@@ -317,7 +326,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   }
   OP_CASE(RByte) {
     uint8_t ch = read_uint8_t(pc);
-    while (*cur == ch) {
+    while (*ctx->pos == ch) {
       CONSUME();
     }
     DISPATCH_NEXT();
@@ -325,7 +334,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   OP_CASE(RSet) {
     uint16_t id = read_uint16_t(pc);
     bitset_t* set = &(r->C->sets[id]);
-    while (bitset_get(set, *cur)) {
+    while (bitset_get(set, *ctx->pos)) {
       CONSUME();
     }
     DISPATCH_NEXT();
@@ -334,7 +343,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     uint16_t id = read_uint16_t(pc);
     const char *str = r->C->strs[id];
     unsigned len = pstring_length(str);
-    while (pstring_starts_with(cur, str, len) == 1) {
+    while (pstring_starts_with(ctx->pos, str, len) == 1) {
         CONSUME_N(len);
     }
     DISPATCH_NEXT();
@@ -343,7 +352,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     uint16_t id = read_uint16_t(pc);
     uint8_t* index = r->C->jump_indexs[id];
     uint16_t* table = r->C->jump_tables[id];
-    uint8_t ch = (uint8_t)*cur;
+    uint8_t ch = (uint8_t)*ctx->pos;
     pc = pc + table[index[ch]];
     DISPATCH_NEXT();
   }
@@ -351,7 +360,7 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     uint16_t id = read_uint16_t(pc);
     uint8_t* index = r->C->jump_indexs[id];
     uint16_t* table = r->C->jump_tables[id];
-    uint8_t ch = (uint8_t)*cur++;
+    uint8_t ch = (uint8_t)*ctx->pos++;
     pc = pc + table[index[ch]];
     DISPATCH_NEXT();
   }
@@ -362,10 +371,22 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TPop");
   }
   OP_CASE(TBegin) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TBegin");
+    int8_t shift = read_int8_t(pc);
+    ParserContext_beginTree(ctx, shift);
+    DISPATCH_NEXT();
   }
   OP_CASE(TEnd) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TEnd");
+    int8_t shift = read_int8_t(pc);
+    uint16_t tag_id = read_uint16_t(pc);
+    symbol_t tag = r->C->tags[tag_id];
+    uint16_t value_id = read_uint16_t(pc);
+    const char* value = r->C->strs[value_id];
+    size_t len = 0;
+    if (value != NULL) {
+      len = pstring_length(value);
+    }
+    ParserContext_endTree(ctx, shift, tag, value, len);
+    DISPATCH_NEXT();
   }
   OP_CASE(TTag) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TTag");

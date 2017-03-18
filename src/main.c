@@ -52,6 +52,7 @@ int main(int argc, char *const argv[]) {
   mininez_init_vm(r->ctx);
   int result = mininez_parse(r, inst);
   if (result) {
+    cnez_dump(r->ctx->left, stderr);
     if ((r->ctx->pos - r->ctx->inputs) != r->ctx->length) {
       fprintf(stderr, "unconsume error\n");
     } else {
