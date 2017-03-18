@@ -252,7 +252,8 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst+=2;
         break;
       }
-      CASE_(Dispatch) {
+      CASE_(Dispatch);
+      CASE_(DDispatch) {
         fprintf(stderr, " %u", *((uint16_t *)inst));
         inst+=2;
         break;
@@ -336,7 +337,8 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst = Loader_Write16(inst, loader->str_count++);
       break;
     }
-    CASE_(Dispatch) {
+    CASE_(Dispatch);
+    CASE_(DDispatch) {
       uint16_t len = Loader_Read16(loader);
       loader->r->C->jump_indexs[loader->table_count] = (uint8_t *)VM_MALLOC(sizeof(uint8_t) * len);
       for (size_t i = 0; i < len; i++) {

@@ -348,7 +348,12 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(DDispatch) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction DDispatch");
+    uint16_t id = read_uint16_t(pc);
+    uint8_t* index = r->C->jump_indexs[id];
+    uint16_t* table = r->C->jump_tables[id];
+    uint8_t ch = (uint8_t)*cur++;
+    pc = pc + table[index[ch]];
+    DISPATCH_NEXT();
   }
   OP_CASE(TPush) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TPush");
