@@ -309,6 +309,19 @@ mininez_inst_t* mininez_dump_inst(mininez_inst_t* inst, mininez_runtime_t *r) {
       inst+=2;
       break;
     }
+    CASE_(Lookup);
+    CASE_(TLookup) {
+      fprintf(stderr, " uid:%u ", *((uint16_t *)inst));
+      inst+=2;
+      fprintf(stderr, "jump:%d", *((int16_t *)inst));
+      inst+=2;
+    }
+    CASE_(Memo);
+    CASE_(MemoFail);
+    CASE_(TMemo) {
+      fprintf(stderr, " uid:%u", *((uint16_t *)inst));
+      inst+=2;
+    }
     default: break;
   }
 #undef CASE_
@@ -488,6 +501,25 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       inst = Loader_Write16(inst, loader->tag_count++);
       break;
     }
+    CASE_(Lookup);
+    CASE_(TLookup) {
+      uint16_t uid = Loader_Read16(loader);
+      inst = Loader_Write16(inst, uid);
+      uint8_t is_signed = Loader_Read8(loader);
+      int16_t jump = Loader_Read16(loader);
+      if (!is_signed) {
+        jump = (-jump);
+      }
+      inst = Loader_WriteS16(inst, jump);
+      break;
+    }
+    CASE_(Memo);
+    CASE_(MemoFail);
+    CASE_(TMemo) {
+      uint16_t uid = Loader_Read16(loader);
+      inst = Loader_Write16(inst, uid);
+      break;
+    }
     default: break;
   }
 #undef CASE_
@@ -521,6 +553,11 @@ mininez_inst_t* mininez_load_code(mininez_runtime_t* r, const char* code_file_na
   C->start_point = 4; // Default Start Point
   mininez_init_constant(C);
   r->C = C;
+
+  // Memo Size
+  uint16_t w = read16(buf, &info);
+  uint16_t n = read16(buf, &info);
+  ParserContext_initMemo(r->ctx, w, n);
 
   info.bytecode_length = read64(buf, &info);
   r->C->bytecode_length = info.bytecode_length;

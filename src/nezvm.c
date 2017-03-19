@@ -126,6 +126,14 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   CTX->fail_stack = FAIL->value;\
 } while(0)
 
+#define POP_SUCC_POS(CTX, INST, CUR, PC, FAIL, POS) do {\
+  FAIL = CTX->stacks + CTX->fail_stack;\
+  CTX->unused_stack = CTX->fail_stack - 1;\
+  CTX->fail_stack = FAIL->value;\
+  FAIL++;\
+  POS = (const char*)FAIL->value;\
+} while(0)
+
 #define read_uint8_t(PC)   *(PC);              PC += sizeof(uint8_t)
 #define read_int8_t(PC)    *((int8_t *)PC);    PC += sizeof(int8_t)
 #define read_uint16_t(PC)  *((uint16_t *)PC);  PC += sizeof(uint16_t)
@@ -461,19 +469,46 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction NDec");
   }
   OP_CASE(Lookup) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Lookup");
+    uint16_t uid = read_uint16_t(pc);
+    int16_t jump = read_int16_t(pc);
+    int result = ParserContext_memoLookup(ctx, uid);
+    if (result == SuccFound) {
+      pc = pc + jump;
+    } else if (result == FailFound) {
+      POP_FAIL(ctx, inst, ctx->pos, pc, fail);
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(Memo) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction Memo");
+    uint16_t uid = read_uint16_t(pc);
+    const char* ppos;
+    POP_SUCC_POS(ctx, inst, ctx->pos, pc, fail, ppos);
+    ParserContext_memoSucc(ctx, uid, ppos);
+    DISPATCH_NEXT();
   }
   OP_CASE(MemoFail) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction MemoFail");
+    uint16_t uid = read_uint16_t(pc);
+    ParserContext_memoFail(ctx, uid);
+    POP_FAIL(ctx, inst, ctx->pos, pc, fail);
+    DISPATCH_NEXT();
   }
   OP_CASE(TLookup) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TLookup");
+    uint16_t uid = read_uint16_t(pc);
+    int16_t jump = read_int16_t(pc);
+    int result = ParserContext_memoLookupTree(ctx, uid);
+    if (result == SuccFound) {
+      pc = pc + jump;
+    } else if (result == FailFound) {
+      POP_FAIL(ctx, inst, ctx->pos, pc, fail);
+    }
+    DISPATCH_NEXT();
   }
   OP_CASE(TMemo) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TMemo");
+    uint16_t uid = read_uint16_t(pc);
+    const char* ppos;
+    POP_SUCC_POS(ctx, inst, ctx->pos, pc, fail, ppos);
+    ParserContext_memoTreeSucc(ctx, uid, ppos);
+    DISPATCH_NEXT();
   }
   DISPATCH_END();
   return 0;
