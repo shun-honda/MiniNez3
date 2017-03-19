@@ -59,7 +59,7 @@ void mininez_dispose_constant(mininez_constant_t *C) {
   for (uint16_t i = 0; i < C->tag_size; i++) {
     if(C->tags[i] != NULL) {
       pstring_delete(C->tags[i]);
-      C->strs[i] = NULL;
+      C->tags[i] = NULL;
     }
   }
   VM_FREE(C->tags);
@@ -365,10 +365,14 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(TPush) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TPush");
+    pushW(ctx, ParserContext_saveLog(ctx), ctx->left);
+    DISPATCH_NEXT();
   }
   OP_CASE(TPop) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TPop");
+    Wstack* stack = popW(ctx);
+    ParserContext_backLog(ctx, stack->value);
+    ctx->left = stack->tree;
+    DISPATCH_NEXT();
   }
   OP_CASE(TBegin) {
     int8_t shift = read_int8_t(pc);
@@ -389,13 +393,22 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(TTag) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TTag");
+    uint16_t id = read_uint16_t(pc);
+    symbol_t tag = r->C->tags[id];
+    ParserContext_tagTree(ctx, tag);
+    DISPATCH_NEXT();
   }
   OP_CASE(TReplace) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TReplace");
   }
   OP_CASE(TLink) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TLink");
+    uint16_t id = read_uint16_t(pc);
+    symbol_t label = r->C->tags[id];
+    Wstack* stack = popW(ctx);
+    ParserContext_backLog(ctx, stack->value);
+    ParserContext_linkTree(ctx, label);
+    ctx->left = stack->tree;
+    DISPATCH_NEXT();
   }
   OP_CASE(TFold) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TFold");
