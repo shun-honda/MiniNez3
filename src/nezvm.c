@@ -411,7 +411,11 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(TFold) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TFold");
+    int8_t shift = read_int8_t(pc);
+    uint8_t id = read_uint16_t(pc);
+    symbol_t label = r->C->tags[id];
+    ParserContext_foldTree(ctx, shift, label);
+    DISPATCH_NEXT();
   }
   OP_CASE(TEmit) {
     nez_PrintErrorInfo("Error: Unimplemented Instruction TEmit");

@@ -290,6 +290,13 @@ void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
         inst+=2;
         break;
       }
+      CASE_(TFold) {
+        fprintf(stderr, " %d", *(int8_t*)inst);
+        inst++;
+        fprintf(stderr, " $(%s)", r->C->tags[*((uint16_t *)inst)]);
+        inst+=2;
+        break;
+      }
       default: break;
     }
 #undef CASE_
@@ -423,6 +430,16 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       break;
     }
     CASE_(TLink) {
+      uint16_t len = Loader_Read16(loader);
+      char *label = peek(loader->buf, loader->info);
+      skip(loader->info, len);
+      loader->r->C->tags[loader->tag_count] = pstring_alloc(label, (unsigned)len);
+      inst = Loader_Write16(inst, loader->tag_count++);
+      break;
+    }
+    CASE_(TFold) {
+      *(int8_t *)inst = Loader_ReadS8(loader);
+      inst++;
       uint16_t len = Loader_Read16(loader);
       char *label = peek(loader->buf, loader->info);
       skip(loader->info, len);
