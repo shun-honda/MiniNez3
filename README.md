@@ -14,11 +14,11 @@ sudo apt-get install cmake
 ## Build
 You'll have to make a few steps. Type in:
 ```
-	$ mkdir build
-	$ cd build
-	$ cmake ..
-	$ make
-	$ execute ./build/mininez
+  $ mkdir build
+  $ cd build
+  $ cmake ..
+  $ make
+  $ execute ./build/mininez
 ```
 
 ## Execution
