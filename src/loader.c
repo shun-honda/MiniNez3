@@ -123,14 +123,14 @@ static mininez_inst_t* Loader_Write32(mininez_inst_t* inst, uint16_t value) {
   return inst;
 }
 
-#if MININEZ_DEBUG == 1
-
 static void dump_bytecode_info(mininez_bytecode_info *info) {
   fprintf(stderr, "Version: %u.%u\n", info->version0, info->version1);
   fprintf(stderr, "Grammar Name: %s.nez\n", info->grammar_name);
   fprintf(stderr, "Bytecode Length: %llu\n", info->bytecode_length);
   fprintf(stderr, "Bytecode Size: %llu\n", info->bytecode_size);
 }
+
+#if MININEZ_DEBUG == 1
 
 static void dump_constant(mininez_constant_t *C) {
   fprintf(stderr, "Prod Size: %u\n", C->prod_size);

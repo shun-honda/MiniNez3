@@ -1,8 +1,9 @@
 #ifndef NEZVM_H
 #define NEZVM_H
 
-#define MININEZ_DEBUG 1
-#define MININEZ_USE_SWITCH_CASE_DISPATCH
+#define MININEZ_DEBUG 0
+// #define MININEZ_USE_SWITCH_CASE_DISPATCH
+#define MININEZ_USE_INDIRECT_THREADING
 
 #include <stdlib.h>
 #include "bitset.h"
@@ -59,6 +60,46 @@ void pushWNum(ParserContext *c, size_t value, size_t num)
   s->num = num;
   GCDEC(c, s->tree);
   s->tree  = NULL;
+}
+
+static void dump_indent(int indent, FILE* fp) {
+  for(int i = 0; i < indent; i++) {
+    fputs("  ", fp);
+  }
+}
+
+static void dumpAST(void *v, int indent, FILE *fp) {
+  size_t i;
+  Tree *t = (Tree*)v;
+  if(t == NULL) {
+    fputs("null", fp);
+    return;
+  }
+  fputs("#", fp);
+  fputs(t->tag, fp);
+  fputs("[", fp);
+  if(t->size == 0) {
+    fputs("'", fp);
+    for(i = 0; i < t->len; i++) {
+      fputc(t->text[i], fp);
+    }
+    fputs("'", fp);
+  }
+  else {
+    fputs("\n", fp);
+    for(i = 0; i < t->size; i++) {
+      dump_indent(indent + 1, fp);
+      if(t->labels[i] != 0) {
+        fputs("$", fp);
+        fputs(t->labels[i], fp);
+        fputs("=", fp);
+      }
+      dumpAST(t->childs[i], indent + 1, fp);
+      fputs("\n", fp);
+    }
+    dump_indent(indent, fp);
+  }
+  fputs("]", fp);
 }
 
 #endif

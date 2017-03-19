@@ -19,6 +19,17 @@ mininez_runtime_t *mininez_create_runtime(const unsigned char *text, size_t len)
   return r;
 }
 
+mininez_runtime_t* mininez_init_runtime(mininez_runtime_t *r) {
+  int memoSize = r->ctx->memoSize;
+  const char* inputs = r->ctx->inputs;
+  size_t len = r->ctx->length;
+  ParserContext_free(r->ctx);
+  r->ctx = ParserContext_new(inputs, len);
+  ParserContext_initTreeFunc(r->ctx, NULL, NULL, NULL, NULL);
+  ParserContext_initMemo(r->ctx, memoSize, 1);
+  return r;
+}
+
 void mininez_dispose_runtime(mininez_runtime_t *r) {
   mininez_dispose_constant(r->C);
   r->C = NULL;
@@ -155,18 +166,25 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   const char* tail = ctx->inputs + ctx->length;
   Wstack* fail = NULL;
 
-  fprintf(stderr, "========Parse Start========\n");
-
 #define CONSUME() ctx->pos++;
 #define CONSUME_N(N) ctx->pos+=N;
 
-#ifdef MININEZ_USE_SWITCH_CASE_DISPATCH
+#if defined(MININEZ_USE_SWITCH_CASE_DISPATCH)
+  fprintf(stderr, "========Parse Start========\n");
 #define DISPATCH_NEXT()         goto L_vm_head
 #define DISPATCH_START(PC) L_vm_head:fprintf(stderr, "[%d]", PC-inst);mininez_dump_inst(PC, r);switch (*PC++) {
 #define DISPATCH_END()     default: nez_PrintErrorInfo("DISPATCH ERROR");}
 #define OP_CASE(OP)        case OP:
-#else
-#define DISPATCH_NEXT()         goto L_vm_head
+#elif defined(MININEZ_USE_INDIRECT_THREADING)
+  static const void* OP_JUMP[] = {
+#define DEFINE_TABLE(NAME) &&MININEZ_OP_##NAME,
+    OP_EACH(DEFINE_TABLE)
+#undef DEFINE_TABLE
+  };
+#define DISPATCH_NEXT()         goto *OP_JUMP[*pc++]
+#define DISPATCH_START(PC)      DISPATCH_NEXT()
+#define DISPATCH_END()          nez_PrintErrorInfo("DISPATCH ERROR");
+#define OP_CASE(OP)             MININEZ_OP_##OP:
 #endif
 
   DISPATCH_START(pc);
