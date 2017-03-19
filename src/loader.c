@@ -132,6 +132,14 @@ static void dump_bytecode_info(mininez_bytecode_info *info) {
   fprintf(stderr, "Bytecode Size: %llu\n", info->bytecode_size);
 }
 
+static void dump_constant(mininez_constant_t *C) {
+  fprintf(stderr, "Prod Size: %u\n", C->prod_size);
+  fprintf(stderr, "Set Size: %u\n", C->set_size);
+  fprintf(stderr, "Str Size: %u\n", C->str_size);
+  fprintf(stderr, "Tag Size: %u\n", C->tag_size);
+  fprintf(stderr, "Table Size: %u\n", C->table_size);
+}
+
 static char *write_char(char *p, unsigned char ch)
 {
     switch (ch) {
@@ -200,107 +208,118 @@ static void dump_set(bitset_t *set, char *buf)
     *buf++ = '\0';
 }
 
+mininez_inst_t* mininez_dump_inst(mininez_inst_t* inst, mininez_runtime_t *r) {
+  uint8_t opcode = *inst;
+  inst++;
+  fprintf(stderr, "%s", opcode_to_string(opcode));
+#define CASE_(OP) case OP:
+  switch (opcode) {
+    CASE_(Nop) {
+      fprintf(stderr, " %s", r->C->prod_names[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(Exit) {
+      fprintf(stderr, " %u", *inst);
+      inst++;
+      break;
+    }
+    CASE_(Jump) {
+      fprintf(stderr, " %d", *((int16_t *)inst));
+      inst+=2;
+      break;
+    }
+    CASE_(Call) {
+      fprintf(stderr, " %d", *((int16_t *)inst));
+      inst+=2;
+      fprintf(stderr, " %u", *((uint16_t *)inst));
+      inst+=2;
+      break;
+    }
+    CASE_(Alt) {
+      fprintf(stderr, " %u", *((uint16_t *)inst));
+      inst+=2;
+      break;
+    }
+    CASE_(Byte);
+    CASE_(NByte);
+    CASE_(OByte);
+    CASE_(RByte) {
+      fprintf(stderr, " %c", *inst);
+      inst++;
+      break;
+    }
+    CASE_(Set);
+    CASE_(NSet);
+    CASE_(OSet);
+    CASE_(RSet) {
+      char buf[1024];
+      dump_set(&r->C->sets[*((uint16_t *)inst)], buf);
+      fprintf(stderr, " %s", buf);
+      inst+=2;
+      break;
+    }
+    CASE_(Str);
+    CASE_(NStr);
+    CASE_(OStr);
+    CASE_(RStr) {
+      fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(Dispatch);
+    CASE_(DDispatch) {
+      fprintf(stderr, " %u", *((uint16_t *)inst));
+      inst+=2;
+      break;
+    }
+    CASE_(TBegin) {
+      fprintf(stderr, " %d", *(int8_t*)inst);
+      inst++;
+      break;
+    }
+    CASE_(TEnd) {
+      fprintf(stderr, " %d", *(int8_t*)inst);
+      inst++;
+      fprintf(stderr, " #%s", r->C->tags[*((uint16_t *)inst)]);
+      inst+=2;
+      fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(TTag) {
+      fprintf(stderr, " #%s", r->C->tags[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(TReplace) {
+      fprintf(stderr, " `%s`", r->C->strs[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(TLink) {
+      fprintf(stderr, " $(%s)", r->C->tags[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    CASE_(TFold) {
+      fprintf(stderr, " %d", *(int8_t*)inst);
+      inst++;
+      fprintf(stderr, " $(%s)", r->C->tags[*((uint16_t *)inst)]);
+      inst+=2;
+      break;
+    }
+    default: break;
+  }
+#undef CASE_
+  fprintf(stderr, "\n");
+  return inst;
+}
+
 void mininez_dump_code(mininez_inst_t* inst, mininez_runtime_t *r) {
   for (uint64_t i = 0; i < r->C->bytecode_length; i++) {
-    uint8_t opcode = *inst;
-    inst++;
-    fprintf(stderr, "%s", opcode_to_string(opcode));
-#define CASE_(OP) case OP:
-    switch (opcode) {
-      CASE_(Nop) {
-        fprintf(stderr, " %s", r->C->prod_names[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      CASE_(Exit) {
-        fprintf(stderr, " %u", *inst);
-        inst++;
-        break;
-      }
-      CASE_(Jump) {
-        fprintf(stderr, " %d", *((int16_t *)inst));
-        inst+=2;
-        break;
-      }
-      CASE_(Call) {
-        fprintf(stderr, " %d", *((int16_t *)inst));
-        inst+=2;
-        fprintf(stderr, " %u", *((uint16_t *)inst));
-        inst+=2;
-        break;
-      }
-      CASE_(Alt) {
-        fprintf(stderr, " %u", *((uint16_t *)inst));
-        inst+=2;
-        break;
-      }
-      CASE_(Byte);
-      CASE_(NByte);
-      CASE_(OByte);
-      CASE_(RByte) {
-        fprintf(stderr, " %c", *inst);
-        inst++;
-        break;
-      }
-      CASE_(Set);
-      CASE_(NSet);
-      CASE_(OSet);
-      CASE_(RSet) {
-        char buf[1024];
-        dump_set(&r->C->sets[*((uint16_t *)inst)], buf);
-        fprintf(stderr, " %s", buf);
-        inst+=2;
-        break;
-      }
-      CASE_(Str);
-      CASE_(NStr);
-      CASE_(OStr);
-      CASE_(RStr) {
-        fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      CASE_(Dispatch);
-      CASE_(DDispatch) {
-        fprintf(stderr, " %u", *((uint16_t *)inst));
-        inst+=2;
-        break;
-      }
-      CASE_(TBegin) {
-        fprintf(stderr, " %d", *(int8_t*)inst);
-        inst++;
-        break;
-      }
-      CASE_(TEnd) {
-        fprintf(stderr, " %d", *(int8_t*)inst);
-        inst++;
-        fprintf(stderr, " #%s", r->C->tags[*((uint16_t *)inst)]);
-        inst+=2;
-        fprintf(stderr, " '%s'", r->C->strs[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      CASE_(TTag) {
-        fprintf(stderr, " #%s", r->C->tags[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      CASE_(TLink) {
-        fprintf(stderr, " $(%s)", r->C->tags[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      CASE_(TFold) {
-        fprintf(stderr, " %d", *(int8_t*)inst);
-        inst++;
-        fprintf(stderr, " $(%s)", r->C->tags[*((uint16_t *)inst)]);
-        inst+=2;
-        break;
-      }
-      default: break;
-    }
-#undef CASE_
-    fprintf(stderr, "\n");
+    fprintf(stderr, "[%llu]", i);
+    inst = mininez_dump_inst(inst, r);
   }
 }
 
@@ -325,12 +344,20 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       break;
     }
     CASE_(Jump) {
-      int16_t jump = Loader_ReadS16(loader);
+      uint8_t is_signed = Loader_Read8(loader);
+      int16_t jump = Loader_Read16(loader);
+      if (!is_signed) {
+        jump = (-jump);
+      }
       inst = Loader_WriteS16(inst, jump);
       break;
     }
     CASE_(Call) {
-      int16_t next = Loader_ReadS16(loader);
+      uint8_t is_signed = Loader_Read8(loader);
+      int16_t next = Loader_Read16(loader);
+      if (!is_signed) {
+        next = (-next);
+      }
       inst = Loader_WriteS16(inst, next);
       uint16_t jump = Loader_Read16(loader);
       inst = Loader_Write16(inst, jump);
@@ -381,10 +408,11 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       uint16_t len = Loader_Read16(loader);
       loader->r->C->jump_indexs[loader->table_count] = (uint8_t *)VM_MALLOC(sizeof(uint8_t) * len);
       for (size_t i = 0; i < len; i++) {
-        loader->r->C->jump_indexs[loader->table_count][i] = Loader_Read8(loader);
+        uint8_t index = Loader_Read8(loader);
+        loader->r->C->jump_indexs[loader->table_count][i] = index;
       }
       len = Loader_Read16(loader);
-      loader->r->C->jump_tables[loader->table_count] = (uint8_t *)VM_MALLOC(sizeof(uint8_t) * len);
+      loader->r->C->jump_tables[loader->table_count] = (uint16_t *)VM_MALLOC(sizeof(uint16_t) * len);
       for (size_t i = 0; i < len; i++) {
         loader->r->C->jump_tables[loader->table_count][i] = Loader_Read16(loader);
       }
@@ -427,6 +455,14 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
       skip(loader->info, len);
       loader->r->C->tags[loader->tag_count] = pstring_alloc(tag, (unsigned)len);
       inst = Loader_Write16(inst, loader->tag_count++);
+      break;
+    }
+    CASE_(TReplace) {
+      uint16_t len = Loader_Read16(loader);
+      char *str = peek(loader->buf, loader->info);
+      skip(loader->info, len);
+      loader->r->C->strs[loader->str_count] = pstring_alloc(str, (unsigned)len);
+      inst = Loader_Write16(inst, loader->str_count++);
       break;
     }
     CASE_(TLink) {

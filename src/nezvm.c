@@ -5,6 +5,7 @@
 #include "nezvm.h"
 #include "instruction.h"
 #include "pstring.h"
+#include "loader.h"
 
 void nez_PrintErrorInfo(const char *errmsg) {
   fprintf(stderr, "%s\n", errmsg);
@@ -146,12 +147,14 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
   const char* tail = ctx->inputs + ctx->length;
   Wstack* fail = NULL;
 
+  fprintf(stderr, "========Parse Start========\n");
+
 #define CONSUME() ctx->pos++;
 #define CONSUME_N(N) ctx->pos+=N;
 
 #ifdef MININEZ_USE_SWITCH_CASE_DISPATCH
 #define DISPATCH_NEXT()         goto L_vm_head
-#define DISPATCH_START(PC) L_vm_head:;switch (*PC++) {
+#define DISPATCH_START(PC) L_vm_head:fprintf(stderr, "[%d]", PC-inst);mininez_dump_inst(PC, r);switch (*PC++) {
 #define DISPATCH_END()     default: nez_PrintErrorInfo("DISPATCH ERROR");}
 #define OP_CASE(OP)        case OP:
 #else
@@ -399,7 +402,11 @@ int mininez_parse(mininez_runtime_t* r, mininez_inst_t* inst) {
     DISPATCH_NEXT();
   }
   OP_CASE(TReplace) {
-    nez_PrintErrorInfo("Error: Unimplemented Instruction TReplace");
+    uint16_t id = read_uint16_t(pc);
+    const char* text = r->C->strs[id];
+    size_t len = pstring_length(text);
+    ParserContext_valueTree(ctx, text, len);
+    DISPATCH_NEXT();
   }
   OP_CASE(TLink) {
     uint16_t id = read_uint16_t(pc);
