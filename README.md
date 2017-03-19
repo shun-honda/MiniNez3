@@ -27,6 +27,36 @@ You can execute sample as follows:
   $ ./build/mininez -g sample/bytecode/math.bin -i sample/input/math.txt -t tree
 ```
 
+Math grammar:
+```
+/* Start Point */
+File        = Expression .*
+
+/* Code Layout */
+_           = S*
+S           = [ \t]
+"+"         = '+' _
+"-"         = '-' _
+"*"         = '*' _
+"/"         = '/' _
+"%"         = '%' _
+"("         = '(' _
+")"         = ')' _
+
+/* Expression */
+Expression  = Sum
+Sum         = Product {$left ("+" #Add / "-" #Sub) $right(Product) }*
+Product     = Value {$left ("*" #Mul / "/" #Div / "%" #Mod) $right(Value) }*
+Value       = { [0-9]+ #Integer } _
+            / { [A-Za-z0-9_]+ #Variable } _
+            / "(" Expression ")"
+```
+
+Math example:
+```
+1+2*4/3-5
+```
+
 You can get the AST as follows:
 ```
 #Sub[
