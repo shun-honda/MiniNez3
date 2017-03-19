@@ -27,6 +27,23 @@ You can execute sample as follows:
   $ ./build/mininez -g sample/bytecode/math.bin -i sample/input/math.txt -t tree
 ```
 
+You can get the AST as follows:
+```
+#Sub[
+  $left=#Add[
+    $left=#Integer['1']
+    $right=#Div[
+      $left=#Mul[
+        $left=#Integer['2']
+        $right=#Integer['4']
+      ]
+      $right=#Integer['3']
+    ]
+  ]
+  $right=#Integer['5']
+]
+```
+
 Math grammar:
 ```
 /* Start Point */
@@ -55,21 +72,4 @@ Value       = { [0-9]+ #Integer } _
 Math example:
 ```
 1+2*4/3-5
-```
-
-You can get the AST as follows:
-```
-#Sub[
-  $left=#Add[
-    $left=#Integer['1']
-    $right=#Div[
-      $left=#Mul[
-        $left=#Integer['2']
-        $right=#Integer['4']
-      ]
-      $right=#Integer['3']
-    ]
-  ]
-  $right=#Integer['5']
-]
 ```
