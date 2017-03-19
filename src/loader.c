@@ -467,10 +467,15 @@ mininez_inst_t* mininez_load_instruction(mininez_inst_t* inst, mininez_bytecode_
     }
     CASE_(TLink) {
       uint16_t len = Loader_Read16(loader);
-      char *label = peek(loader->buf, loader->info);
-      skip(loader->info, len);
-      loader->r->C->tags[loader->tag_count] = pstring_alloc(label, (unsigned)len);
-      inst = Loader_Write16(inst, loader->tag_count++);
+      if (len == 0) {
+        loader->r->C->tags[loader->tag_count] = NULL;
+        inst = Loader_Write16(inst, loader->tag_count++);
+      } else {
+        char *label = peek(loader->buf, loader->info);
+        skip(loader->info, len);
+        loader->r->C->tags[loader->tag_count] = pstring_alloc(label, (unsigned)len);
+        inst = Loader_Write16(inst, loader->tag_count++);
+      }
       break;
     }
     CASE_(TFold) {
