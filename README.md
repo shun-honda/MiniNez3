@@ -73,3 +73,14 @@ Math example:
 ```
 1+2*4/3-5
 ```
+
+## Bytecode Compilation
+
+```
+sh script/compile.sh <Grammar file name> <output dir>
+```
+
+Example
+```
+sh script/compile.sh sample/grammar/math.nez sample/bytecode
+```
