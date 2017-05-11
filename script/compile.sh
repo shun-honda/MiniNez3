@@ -1,8 +1,7 @@
 #!/bin/sh
-GRAMMARDIR=../sample/grammar
-BYTECODEDIR=../sample/bytecode
-NEZ=../ext/nez.jar
+GRAMMAR=$1
+BYTECODEDIR=$2
+NEZ=ext/nez.jar
+CURRENT=$(cd $(dirname $0) && pwd)
 
-for file in $GRAMMARDIR/*.nez; do
-  java -jar $NEZ mininez -g ${file} --dir $BYTECODEDIR
-done
+java -jar ${CURRENT}/../$NEZ mininez -g ${GRAMMAR} --dir $BYTECODEDIR
